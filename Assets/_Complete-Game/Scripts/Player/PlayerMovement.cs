@@ -1,9 +1,10 @@
 ﻿using UnityEngine;
 using UnitySampleAssets.CrossPlatformInput;
+using Mirror;
 
 namespace CompleteProject
 {
-    public class PlayerMovement : MonoBehaviour
+    public class PlayerMovement : NetworkBehaviour
     {
         public float speed = 6f;            // The speed that the player will move at.
 
@@ -29,8 +30,14 @@ namespace CompleteProject
         }
 
 
+        /*
+            Mirror:
+            Apenas o jogador local atualizará o movimento e animação
+         */
         void FixedUpdate ()
         {
+            if(!isLocalPlayer) return; //Mirror: Avoid wrong player update
+
             // Store the input axes.
             float h = CrossPlatformInputManager.GetAxisRaw("Horizontal");
             float v = CrossPlatformInputManager.GetAxisRaw("Vertical");

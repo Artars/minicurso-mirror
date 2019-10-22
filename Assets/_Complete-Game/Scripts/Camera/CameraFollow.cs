@@ -12,15 +12,23 @@ namespace CompleteProject
         Vector3 offset;                     // The initial offset from the target.
 
 
-        void Start ()
+        public void SetTarget(Transform newTarget)
         {
+            target = newTarget;
             // Calculate the initial offset.
             offset = transform.position - target.position;
+        }
+
+        void Start ()
+        {
+            if(target != null)
+                SetTarget(target);
         }
 
 
         void FixedUpdate ()
         {
+            if(target == null) return;
             // Create a postion the camera is aiming for based on the offset from the target.
             Vector3 targetCamPos = target.position + offset;
 

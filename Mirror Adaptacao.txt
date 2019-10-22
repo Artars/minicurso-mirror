@@ -1,0 +1,87 @@
+Sequência de adaptação:
+
+Procure pelas tags "Mirror:" no código 
+
+Remover pasta "Assets/Scripts"
+
+Scripts, apenas adaptação
+1- PlayerHealth
+    Uso de synvars e hooks
+    Uso de ClientRpc
+
+2- PlayerMovement
+    Diferenciação entre clientes
+    Uso de isLocalPlayer
+
+3- PlayerShooting
+    Diferenciação entre clientes
+    Uso de comandos
+    Mover para root do prefab (mudar referências para publico e retirar parte do awake)
+        -> IMPORTANTE: mudar a origem do raycast
+
+4- EnemyHealth
+    Algumas diferenças do cliente (posição de ataque)
+    Não há a necessidade de atualizar a vida
+    Pontuação será atualizada no servidor
+
+5- ScoreManager
+    Pontuação será sincronizada e atualizada apenas pelo servidor
+
+6- EnemyMovement
+    Será feito totalmente no servidor
+    Tags de servidor
+    Será necessario lógica pra decidir qual jogador atacar
+
+7- EnemyAttack
+    Será feito totalmente no servidor
+    Tags de servidor
+
+8- EnemyManager
+    Instanciação de objetos networked
+    Spawn
+
+Adaptação de managers:
+1- EnemyManager
+    Não rodará no cliente
+    NetworkIdentity
+
+2- Player e GameManager
+    Script de player para manter sincronizado status de jogadores
+    Nome do player será PlayerNetwork, devido a nomes iguais
+    Instanciar câmera (mudanças no script para suportar)
+    Comunicar entrada e saída de jogadores
+    Determinar fim de jogo
+
+3- Adaptações dos Inimigos
+    EnemyManager deverá verificar se algum player está vivo
+    Ataques devem contabilizar mais de um player
+    Movimento deve buscar player mais próximo
+
+Adaptação dos prefabs
+1- Player
+    Mudar o script de PlayerShooting para a root do prefab
+    Adicionar o script "Player"
+    Adicionar a câmera como prefab
+    Colocar a HUD dentro do prefab do player pra permitir referência de HUD
+    Adicionar NetworkIdentity com local player autority
+    Adicionar NetworkTransform e NetworkAnimator
+
+2- Inimigos
+    Adicionar NetworkIdentity no prefab
+    Adicionar NetworkTransform e NetworkAnimator
+
+3- Cena (duplicada da original)
+    Remoção da HUD
+    Remoção do jogador
+    Adição do Gamemode na Cena
+    Desativar o MenuCanvas
+    Adição de NetworkIdentity para todos os EnemyManager, colocando ServerOnly
+    Adição de InitialPosition com o componente NetworkStartPosition
+
+4- Cena offline
+    Criar nova cena principal
+    Adicionar um objeto vazio. Com os componentes NetworkManager e NetworkManagerHUD
+    Adicionar os prefabs dos inimigos e do player em prefabs instanciaveis
+    Colocar o prefab do player em player prefab
+    Cena online para a cena que criamos (colocar cena na build)
+    Mudar tick rate para 60

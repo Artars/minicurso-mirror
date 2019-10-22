@@ -1,10 +1,10 @@
 ﻿using UnityEngine;
+using Mirror;
 
 namespace CompleteProject
 {
     public class EnemyManager : MonoBehaviour
     {
-        public PlayerHealth playerHealth;       // Reference to the player's heatlh.
         public GameObject enemy;                // The enemy prefab to be spawned.
         public float spawnTime = 3f;            // How long between each spawn.
         public Transform[] spawnPoints;         // An array of the spawn points this enemy can spawn from.
@@ -20,7 +20,11 @@ namespace CompleteProject
         void Spawn ()
         {
             // If the player has no health left...
-            if(playerHealth.currentHealth <= 0f)
+            /*
+                Mirror:
+                Verificar se algum player ainda está vivo
+            */
+            if(!GameManager.instance.ArePlayersAlive())
             {
                 // ... exit the function.
                 return;
@@ -30,7 +34,9 @@ namespace CompleteProject
             int spawnPointIndex = Random.Range (0, spawnPoints.Length);
 
             // Create an instance of the enemy prefab at the randomly selected spawn point's position and rotation.
-            Instantiate (enemy, spawnPoints[spawnPointIndex].position, spawnPoints[spawnPointIndex].rotation);
+            // Mirror: será comunicado a criação desse inimigo para todos na rede
+            GameObject instantiate = Instantiate (enemy, spawnPoints[spawnPointIndex].position, spawnPoints[spawnPointIndex].rotation);
+            NetworkServer.Spawn(instantiate);
         }
     }
 }

@@ -6,4 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_CompletedAssets/Scenes/Level 01 5.x.unity
+    path: Assets/_Complete-Game/OfflineScene.unity
+    guid: 86185c30e25f05d46ab1a0918913b1f5
+  - enabled: 1
+    path: Assets/_Complete-Game/_Complete-Game-Multiplayer.unity
+    guid: 5e176336a90295143b38eaa314c1c673
+  m_configObjects: {}

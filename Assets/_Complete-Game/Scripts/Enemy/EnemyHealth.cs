@@ -1,10 +1,12 @@
 ﻿using UnityEngine;
+using Mirror;
 
 namespace CompleteProject
 {
-    public class EnemyHealth : MonoBehaviour
+    public class EnemyHealth : NetworkBehaviour
     {
         public int startingHealth = 100;            // The amount of health the enemy starts the game with.
+        [SyncVar]
         public int currentHealth;                   // The current health the enemy has.
         public float sinkSpeed = 2.5f;              // The speed at which the enemy sinks through the floor when dead.
         public int scoreValue = 10;                 // The amount added to the player's score when the enemy dies.
@@ -42,7 +44,12 @@ namespace CompleteProject
             }
         }
 
-
+        /*
+            Mirror:
+            Essa versão só será chamada no servidor. Ela vai atualizar o valor da vida dos inimigos
+            causando o hook que fará o mesmo que essa função
+         */
+        [Server]
         public void TakeDamage (int amount, Vector3 hitPoint)
         {
             // If the enemy is dead...
@@ -68,9 +75,31 @@ namespace CompleteProject
                 // ... the enemy is dead.
                 Death ();
             }
+            else
+            {
+                RpcTakeDamage(hitPoint);
+            }
         }
 
+        /*
+            Mirror:
+            Atualizar apenas os parâmetros visuais
+         */
+        [ClientRpc]
+        void RpcTakeDamage(Vector3 hitPoint)
+        {
+            // Play the hurt sound effect.
+            enemyAudio.Play ();
+            
+            // Set the position of the particle system to where the hit was sustained.
+            hitParticles.transform.position = hitPoint;
 
+            // And play the particles.
+            hitParticles.Play();
+
+        }
+
+        [Server]
         void Death ()
         {
             // The enemy is dead.
@@ -80,6 +109,27 @@ namespace CompleteProject
             capsuleCollider.isTrigger = true;
 
             // Tell the animator that the enemy is dead.
+            anim.SetTrigger ("Dead");
+
+            // Change the audio clip of the audio source to the death clip and play it (this will stop the hurt clip playing).
+            enemyAudio.clip = deathClip;
+            enemyAudio.Play ();
+
+            // Mirror: trecho de código movido do StartSinking
+            // Increase the score by the enemy's score value.
+            ScoreManager.instance.score += scoreValue;
+
+            RpcDeath();
+        }
+
+        [ClientRpc]
+        void RpcDeath()
+        {
+            // Turn the collider into a trigger so shots can pass through it.
+            capsuleCollider.isTrigger = true;
+
+            // Tell the animator that the enemy is dead.
+            // Mirror: apesar do network animator, ele não sincroniza triggers
             anim.SetTrigger ("Dead");
 
             // Change the audio clip of the audio source to the death clip and play it (this will stop the hurt clip playing).
@@ -99,11 +149,9 @@ namespace CompleteProject
             // The enemy should no sink.
             isSinking = true;
 
-            // Increase the score by the enemy's score value.
-            ScoreManager.score += scoreValue;
-
             // After 2 seconds destory the enemy.
             Destroy (gameObject, 2f);
         }
+
     }
 }

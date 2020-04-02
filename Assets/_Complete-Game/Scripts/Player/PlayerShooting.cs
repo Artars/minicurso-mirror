@@ -10,6 +10,8 @@ namespace CompleteProject
         public float timeBetweenBullets = 0.15f;        // The time between each shot.
         public float range = 100f;                      // The distance the gun can fire.
         public Transform shootPosition;                 // Mirror: a posição de tiro será diferente da origem do objeto
+        [SyncVar]
+        public bool isShooting;                         // Mirror: o jogador vai pedir para o servidor alterar essa variável e continuar atirando
 
 
         float timer;                                    // A timer to determine when to fire.
@@ -42,8 +44,8 @@ namespace CompleteProject
             Mirror:
             Será necessário separar entre as funções chamadas em cada cliente e aquelas chamadas no servidor
             
-            As que atualização input, serão alocadas no servidor.
-            As que são de animação e estados, serão alocadas em todos os clientes
+            O dono do jogador, poderá colocar se o jogador está atirando ou não
+            Todos fazem a atualização de tiro
          */
         void Update ()
         {
@@ -55,29 +57,46 @@ namespace CompleteProject
             {
 
 #if !MOBILE_INPUT
-                // If the Fire1 button is being press and it's time to fire...
-                if(Input.GetButton ("Fire1") && timer >= timeBetweenBullets && Time.timeScale != 0)
+                // If the Fire1 button is being press...
+                bool shouldShoot = Input.GetButton ("Fire1");
+                if(shouldShoot ^ isShooting)
                 {
                     // ... shoot the gun.
-                    Shoot ();
+                    CmdSetShooting(shouldShoot);
                 }
 #else
-                // If there is input on the shoot direction stick and it's time to fire...
-                if ((CrossPlatformInputManager.GetAxisRaw("Mouse X") != 0 || CrossPlatformInputManager.GetAxisRaw("Mouse Y") != 0) && timer >= timeBetweenBullets)
+                // If there is input on the shoot direction stick...
+                bool shouldShoot = (CrossPlatformInputManager.GetAxisRaw("Mouse X") != 0 || CrossPlatformInputManager.GetAxisRaw("Mouse Y") != 0);
+                if(shouldShoot ^ isShooting)
                 {
                     // ... shoot the gun
-                    Shoot();
+                    CmdSetShooting(shouldShoot);
                 }
 #endif
             }
+
             // If the timer has exceeded the proportion of timeBetweenBullets that the effects should be displayed for...
             if(timer >= timeBetweenBullets * effectsDisplayTime)
             {
                 // ... disable the effects.
                 DisableEffects ();
             }
+            if(timer >= timeBetweenBullets && Time.timeScale != 0 && isShooting)
+            {
+                Shoot();
+            }
+
         }
 
+        /*
+            Mirror:
+            O servidor vai atualizar essa variável, já que o jogador não pode
+        */
+        [Command]
+        void CmdSetShooting(bool value)
+        {
+            isShooting = value;
+        }
 
         public void DisableEffects ()
         {
@@ -103,18 +122,6 @@ namespace CompleteProject
             // Reset the timer.
             timer = 0f;
 
-            // Será chamado do dono do objeto para o servidor
-            CmdShoot();
-        }
-
-        /*
-            Mirror:
-            Poderia ser passado parâmetros extras, como posição, tempo de tiro e velocidade, para reduzir
-            problemas causados por lag
-         */
-        [Command]
-        void CmdShoot()
-        {
             Vector3 hitPos; //Mirror: Posição de acerto de raio
 
             // Set the shootRay so that it starts at the end of the gun and points forward from the barrel.
@@ -125,16 +132,18 @@ namespace CompleteProject
             // Perform the raycast against gameobjects on the shootable layer and if it hits something...
             if(Physics.Raycast (shootRay, out shootHit, range, shootableMask))
             {
-                Debug.Log("Hit " + shootHit.collider.gameObject.name);
-
-                // Try and find an EnemyHealth script on the gameobject hit.
-                EnemyHealth enemyHealth = shootHit.collider.GetComponent <EnemyHealth> ();
-
-                // If the EnemyHealth component exist...
-                if(enemyHealth != null)
+                // Mirror: Só o servidor pode ferir os inimigos
+                if(isServer)
                 {
-                    // ... the enemy should take damage.
-                    enemyHealth.TakeDamage (damagePerShot, shootHit.point);
+                    // Try and find an EnemyHealth script on the gameobject hit.
+                    EnemyHealth enemyHealth = shootHit.collider.GetComponent <EnemyHealth> ();
+
+                    // If the EnemyHealth component exist...
+                    if(enemyHealth != null)
+                    {
+                        // ... the enemy should take damage.
+                        enemyHealth.TakeDamage (damagePerShot, shootHit.point);
+                    }
                 }
 
                 // Set the second position of the line renderer to the point the raycast hit.
@@ -147,35 +156,29 @@ namespace CompleteProject
                 hitPos = shootRay.origin + shootRay.direction * range;
             }
 
-            // Mirror: Chamar a função de tiro em todos os clientes
-            RpcShoot(hitPos);
+            // If it's server only, avoid extra processing
+            if(!isServerOnly)
+            {
+                // Play the gun shot audioclip.
+                gunAudio.Play ();
+
+                // Enable the lights.
+                gunLight.enabled = true;
+                faceLight.enabled = true;
+
+                // Stop the particles from playing if they were, then start the particles.
+                gunParticles.Stop ();
+                gunParticles.Play ();
+
+                // Enable the line renderer and set it's first position to be the end of the gun.
+                gunLine.enabled = true;
+                gunLine.SetPosition (0, shootPosition.position);
+                gunLine.SetPosition(1, hitPos);
+            }
+
         }
 
-        /*
-            Mirror:
-            Será necessário enviar a posição de acerto para todos os jogadores, devido a linha de tiro
-         */
-        [ClientRpc]
-        void RpcShoot(Vector3 hitPos)
-        {
-            // Play the gun shot audioclip.
-            gunAudio.Play ();
 
-            // Enable the lights.
-            gunLight.enabled = true;
-			faceLight.enabled = true;
-
-            // Stop the particles from playing if they were, then start the particles.
-            gunParticles.Stop ();
-            gunParticles.Play ();
-
-            // Enable the line renderer and set it's first position to be the end of the gun.
-            gunLine.enabled = true;
-            gunLine.SetPosition (0, shootPosition.position);
-            gunLine.SetPosition(1, hitPos);
-
-            // Mirror: o contador dos clientes não donos deve ser zerado (o do dono já é zerado quando ele atira)
-            if(!isLocalPlayer) timer = 0;
-        }
+       
     }
 }
